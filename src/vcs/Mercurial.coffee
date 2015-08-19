@@ -7,7 +7,7 @@ module.exports = class Mercurial extends Base
   _doCommit: (message) -> @_exec(['hg', 'commit', '-m', message])
 
 
-  _doPull: -> @_exec(['hg', 'pull'])
+  _doPull: -> @_exec(['hg', 'pull', '-u'])
 
 
   _doPush: -> @_exec(['hg', 'push'])
