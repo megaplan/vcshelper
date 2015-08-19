@@ -1,6 +1,6 @@
 {
   "name": "vcshelper",
-  "version": "1.1.1",
+  "version": "1.1.2",
   "description": "Multiple repositories helper",
   "main": "index.js",
   "directories": {
