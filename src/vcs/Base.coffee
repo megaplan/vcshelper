@@ -1,5 +1,5 @@
-Promise = require("bluebird")
-passthru = Promise.promisify(require("passthru"))
+Promise = require('bluebird')
+spawn = require('child_process').spawn
 ExecError = require('./ExecError')
 path = require('path')
 _ = require('lodash')
@@ -13,10 +13,40 @@ module.exports = class Base
   type: null
 
   constructor: (@dir, @revMap = {}) ->
+    @_output = []
+    @_bufferedOutput = false
     @_dirToLog = if @dir == process.cwd()
       undefined
     else
       _.trim(path.relative(process.cwd(), @dir))
+
+
+  setBufferedOutput: (value) ->
+    value = Boolean(value)
+    if value != @_bufferedOutput
+      if false == value
+        @flushOutput()
+      @_bufferedOutput = value
+    this
+
+
+  flushOutput: ->
+    ###
+      Flushes current buffered output to log
+    ###
+    for line in @_output
+      console.log.apply(console, line)
+    @_output = []
+
+
+  _log: (output) ->
+    ###
+      @param Array output console.log arguments array
+    ###
+    if typeof output == 'string'
+      output = [output]
+    @_output.push(output)
+    @flushOutput() if not @_bufferedOutput
 
 
   commit: (message) -> @_doCommit(message)
@@ -54,8 +84,28 @@ module.exports = class Base
       logArgs.push colors.green(@_dirToLog+':')
     logArgs.push colors.yellow("( #{@type} )")
     logArgs.push logCommand
-    console.log.apply(console, logArgs)
-    passthru(command, cwd: @dir).error (e)-> throw new ExecError(e.cause.message, e.cause.code)
+    @_log(logArgs)
+    new Promise (resolve, reject) =>
+      # 'ls -la' => ['ls', '-la']
+      if typeof command == 'string'
+        command = command.split(' ')
+      args = command
+      command = args.shift()
+      child = spawn(
+        command
+        args
+        cwd: @dir
+        env: process.env
+      )
+      child.stdout.on 'data', (data) => @_log(data.toString())
+      child.stderr.on 'data', (data) => @_log(data.toString())
+      child.on 'exit', (code, signal) =>
+        if 0 == code
+          resolve()
+        else
+          msg = "Process exit with code #{code}"
+          msg += "and signal #{signal}" if signal
+          reject(new ExecError(msg, code))
 
 
   _doCommit: (message) ->
