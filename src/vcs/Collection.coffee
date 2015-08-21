@@ -14,8 +14,7 @@ module.exports = class Collection extends Base
         for handler in @handlers
           do (handler) ->
             handler.setBufferedOutput(true)
-            outputPromise = Promise.settle(promises.concat()).then ->
-              handler.setBufferedOutput(false)
+            outputPromise = Promise.settle(promises.concat()).then -> handler.setBufferedOutput(false)
             promises.push(Promise.all([handler[methodName](args...), outputPromise]))
         Promise.settle(promises).then (results) ->
           # Keep result future rejected if any
